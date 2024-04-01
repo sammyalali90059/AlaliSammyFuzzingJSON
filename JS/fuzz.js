@@ -9,50 +9,52 @@ const parsers = {
     "JSON5.parse": JSON5.parse
 };
 
-function initializeResultsFile() {
+function initializeResultsFile(resultsFile) {
     const headers = ["File Path", "File Name", "Parser Name", "Status", "Error Message"];
-    fs.writeFileSync('fuzzing_results_js.csv', headers.join(',') + '\n', 'utf8');
+    fs.writeFileSync(resultsFile, headers.join(',') + '\n', 'utf8');
 }
 
-function logResult(filePath, fileName, parserName, status, errorMessage = "") {
+function logResult(resultsFile, filePath, fileName, parserName, status, errorMessage = "") {
     const row = [filePath, fileName, parserName, status, errorMessage].join(',');
-    fs.appendFileSync('fuzzing_results_js.csv', row + '\n', 'utf8');
+    fs.appendFileSync(resultsFile, row + '\n', 'utf8');
 }
 
-function fuzzJsonWithParser(parserName, parserFunc, filePath) {
+function fuzzJsonWithParser(parserName, parserFunc, filePath, resultsFile) {
     try {
         const data = fs.readFileSync(filePath, 'utf8');
         parserFunc(data);
-        logResult(filePath, path.basename(filePath), parserName, "Success");
+        logResult(resultsFile, filePath, path.basename(filePath), parserName, "Success");
     } catch (e) {
-        logResult(filePath, path.basename(filePath), parserName, "Error", e.message);
+        logResult(resultsFile, filePath, path.basename(filePath), parserName, "Error", e.message);
     }
 }
 
-function fuzzAllParsers(filePath) {
+function fuzzAllParsers(filePath, resultsFile) {
     Object.entries(parsers).forEach(([name, func]) => {
-        fuzzJsonWithParser(name, func, filePath);
+        fuzzJsonWithParser(name, func, filePath, resultsFile);
     });
 }
 
-function fuzzDirectory(directoryPath) {
+function fuzzDirectory(directoryPath, resultsFile) {
     fs.readdirSync(directoryPath).forEach(file => {
         if (file.endsWith('.json')) {
             const filePath = path.join(directoryPath, file);
-            fuzzAllParsers(filePath);
+            fuzzAllParsers(filePath, resultsFile);
         }
     });
 }
 
 function main() {
-    initializeResultsFile();
-    const baseDirectory = "C:/Users/Sammy/Documents/Thesis";
+    const baseDirectory = "C:/Users/Sammy/Documents/Thesis/AlaliSammyFuzzingJSON/JSONFiles";
+    const resultsDirectory = "C:/Users/Sammy/Documents/Thesis/AlaliSammyFuzzingJSON/Results";
+    const resultsFile = path.join(resultsDirectory, "fuzzing_results_js.csv");
+    initializeResultsFile(resultsFile);
     const directories = [
         path.join(baseDirectory, "real_json_files"),
         path.join(baseDirectory, "mutated_json_files"),
         path.join(baseDirectory, "generated_json_files_advanced")
     ];
-    directories.forEach(dir => fuzzDirectory(dir));
+    directories.forEach(dir => fuzzDirectory(dir, resultsFile));
 }
 
 main();
