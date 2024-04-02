@@ -25,9 +25,9 @@ class JsonFuzzer
         InitializeResultsFile(resultsFile);
         var directories = new List<string>
         {
+            Path.Combine(baseDirectory, "generated_json_files_advanced"),
             Path.Combine(baseDirectory, "real_json_files"),
-            Path.Combine(baseDirectory, "mutated_json_files"),
-            Path.Combine(baseDirectory, "generated_json_files_advanced")
+            Path.Combine(baseDirectory, "mutated_json_files")
         };
 
         foreach (var directory in directories)
@@ -75,7 +75,6 @@ class JsonFuzzer
                 FuzzJsonWithParser(parser.Key, parser.Value, filePath, resultsFile);
             }
         }
-        // Print the completion message for the current directory
         Console.WriteLine($"Finished processing directory: {directoryPath}");
     }
 }
