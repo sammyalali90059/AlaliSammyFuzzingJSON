@@ -5,7 +5,7 @@ using System.Text.Json;
 using Newtonsoft.Json;
 using Jil;
 using Utf8Json;
-
+using RestSharp;
 class JsonFuzzer
 {
     static Dictionary<string, Action<string>> parsers = new Dictionary<string, Action<string>>()
@@ -13,7 +13,10 @@ class JsonFuzzer
         ["System.Text.Json"] = data => System.Text.Json.JsonSerializer.Deserialize<object>(data),
         ["Newtonsoft.Json"] = data => Newtonsoft.Json.JsonConvert.DeserializeObject<object>(data),
         ["Jil"] = data => Jil.JSON.Deserialize<object>(data),
-        ["Utf8Json"] = data => Utf8Json.JsonSerializer.Deserialize<object>(data)
+        ["Utf8Json"] = data => Utf8Json.JsonSerializer.Deserialize<object>(data),
+        ["LitJson"] = data => LitJson.JsonMapper.ToObject(data),
+        ["ServiceStack.Text"] = data => ServiceStack.Text.JsonSerializer.DeserializeFromString<object>(data),
+        ["FastJson"] = data => fastJSON.JSON.ToObject(data)
     };
 
     static void Main(string[] args)
@@ -25,9 +28,9 @@ class JsonFuzzer
         InitializeResultsFile(resultsFile);
         var directories = new List<string>
         {
-            Path.Combine(baseDirectory, "generated_json_files_advanced"),
-            Path.Combine(baseDirectory, "real_json_files"),
-            Path.Combine(baseDirectory, "mutated_json_files")
+            //Path.Combine(baseDirectory, "generated_json_files_advanced"),
+            Path.Combine(baseDirectory, "real_json_files")
+            //Path.Combine(baseDirectory, "mutated_json_files")
         };
 
         foreach (var directory in directories)

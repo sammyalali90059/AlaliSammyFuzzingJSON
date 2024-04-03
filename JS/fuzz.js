@@ -2,11 +2,20 @@ const fs = require('fs');
 const path = require('path');
 const fastJsonParse = require('fast-json-parse');
 const JSON5 = require('json5');
+const Bourne = require('@hapi/bourne');
+const { parse: flattedParse } = require('flatted');
+const betterParse = require('json-parse-even-better-errors');
+const { parse: safeParse } = require('json-parse-safe');
+const stringifySafe = require('json-stringify-safe');
+
 
 const parsers = {
     "JSON.parse": JSON.parse,
     "fast-json-parse": data => fastJsonParse(data).value,
-    "JSON5.parse": JSON5.parse
+    "JSON5.parse": JSON5.parse,
+    "bourne": data => Bourne.parse(data),
+    "better-parse": betterParse,
+	"safe-stringify-parse": data => JSON.parse(stringifySafe(data))
 };
 
 function initializeResultsFile(resultsFile) {
@@ -15,7 +24,8 @@ function initializeResultsFile(resultsFile) {
 }
 
 function logResult(resultsFile, filePath, fileName, parserName, status, errorMessage = "") {
-    const row = [filePath, fileName, parserName, status, errorMessage].join(',');
+    // Encapsulate each field in double quotes and escape existing double quotes in the content.
+    const row = [`"${filePath}"`, `"${fileName}"`, `"${parserName}"`, `"${status}"`, `"${errorMessage.replace(/"/g, '""')}"`].join(',');
     fs.appendFileSync(resultsFile, row + '\n', 'utf8');
 }
 

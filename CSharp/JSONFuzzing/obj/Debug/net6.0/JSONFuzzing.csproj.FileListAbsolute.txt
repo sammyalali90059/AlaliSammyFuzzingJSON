@@ -46,3 +46,7 @@ C:\Users\Sammy\Documents\Thesis\AlaliSammyFuzzingJSON\CSharp\JSONFuzzing\obj\Deb
 C:\Users\Sammy\Documents\Thesis\AlaliSammyFuzzingJSON\CSharp\JSONFuzzing\obj\Debug\net6.0\JSONFuzzing.pdb
 C:\Users\Sammy\Documents\Thesis\AlaliSammyFuzzingJSON\CSharp\JSONFuzzing\obj\Debug\net6.0\JSONFuzzing.genruntimeconfig.cache
 C:\Users\Sammy\Documents\Thesis\AlaliSammyFuzzingJSON\CSharp\JSONFuzzing\obj\Debug\net6.0\ref\JSONFuzzing.dll
+C:\Users\Sammy\Documents\Thesis\AlaliSammyFuzzingJSON\CSharp\JSONFuzzing\bin\Debug\net6.0\fastjson.dll
+C:\Users\Sammy\Documents\Thesis\AlaliSammyFuzzingJSON\CSharp\JSONFuzzing\bin\Debug\net6.0\LitJSON.dll
+C:\Users\Sammy\Documents\Thesis\AlaliSammyFuzzingJSON\CSharp\JSONFuzzing\bin\Debug\net6.0\RestSharp.dll
+C:\Users\Sammy\Documents\Thesis\AlaliSammyFuzzingJSON\CSharp\JSONFuzzing\bin\Debug\net6.0\ServiceStack.Text.dll
