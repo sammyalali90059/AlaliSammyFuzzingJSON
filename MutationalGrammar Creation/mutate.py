@@ -8,7 +8,6 @@ from pathlib import Path
 real_files_dir = Path("real_json_files")
 mutated_files_dir = Path("mutated_json_files")
 
-# Make sure the mutated_files_dir exists
 os.makedirs(mutated_files_dir, exist_ok=True)
 
 def shuffle_dict(d):
@@ -23,59 +22,83 @@ def mutate_json(original_json):
     def mutate_structure(value):
         """Mutates the JSON structure, altering the ordering, nesting, and type changes."""
         if isinstance(value, dict):
-            # Shuffle dictionary order
+            #shuffling dictionary
+            #for example
+            #Input dictionary: {'a': 1, 'b': 2, 'c': 3}
+            #Shuffled dictionary: {'b': 2, 'c': 3, 'a': 1}
             value = shuffle_dict(value)
             
-            # Randomly nest the dictionary
+            #Randomly nest the dictionary
+            #Input dictionary: {'a': 1, 'b': 2, 'c': 3}
+            #After nesting: {'a': 1, 'b': 2, 'c': {'nested_key': 3}}
             if random.choice([True, False]):
                 key = random.choice(list(value.keys()))
                 value[key] = {'nested_key': value[key]}
                 
-            # Remove a random key
+            #Remove a random key
+            #Input dictionary: {'a': 1, 'b': 2, 'c': 3}
+            #After removing a key: {'a': 1, 'c': 3}
             if random.choice([True, False]) and value:
                 key_to_remove = random.choice(list(value.keys()))
                 value.pop(key_to_remove)
                 
             # Duplicate a key with altered value
+            
+            #Input dictionary: {'a': 1, 'b': 2, 'c': 3}
+            #After duplicating key 'b': {'a': 1, 'b': 2, 'b_dup': 2}
             if value:
                 key_to_duplicate = random.choice(list(value.keys()))
                 value[key_to_duplicate + '_dup'] = mutate_value(value[key_to_duplicate])
             
-            # Introduce deeper nesting for objects
+            #Introduce deeper nesting for objects
+            #Input dictionary: {'a': 1, 'b': 2, 'c': 3}
+            #After deeper nesting: {'nested_deep': {'a': 1, 'b': 2, 'c': 3}}
             if random.choice([True, False]):
                 value = {'nested_deep': value}
             
-            # Introduce new random key-value pairs
+            #Introduce new random key-value pairs
+            #Input dictionary: {'a': 1, 'b': 2, 'c': 3}
+            #After introducing new pair: {'a': 1, 'b': 2, 'c': 3, 'random_key_55': -42}
+
             if random.choice([True, False]):
                 random_key = f'random_key_{random.randint(1, 100)}'
                 value[random_key] = random.randint(-100, 100)
 
         elif isinstance(value, list):
-            # Shuffle list order
+            #Shuffle list order
+            #Input list: [1, 2, 3, 4, 5]
+            #Shuffled list: [5, 1, 4, 2, 3]
+
             random.shuffle(value)
             
             # Remove a random item
+            #Input list: [1, 2, 3, 4, 5]
+            #After removing a random item: [1, 2, 3, 5]
             if len(value) > 1 and random.choice([True, False]):
                 value.pop(random.randrange(len(value)))
 
-            # Nest a list within the list
+            #Nest a list within the list
+            #Input list: [1, 2, 3, 4, 5]
+            #After nesting: [1, [2, {'nested': 'object'}], 3, 4, 5]  
             if random.choice([True, False]):
                 index = random.randrange(len(value))
                 value[index] = [value[index], {'nested': 'object'}]
                 
-            # Duplicate a list item
+            #Duplicate a list item
+            #Input list: [1, 2, 3, 4, 5]
+            #After duplicating an item: [1, 2, 3, 4, 5, 3]
             if value:
                 item_to_duplicate = random.choice(value)
                 value.append(item_to_duplicate)
             
-            # Combine two arrays into one or split an array into two
+            #Combine two arrays into one or split an array into two
             if len(value) > 2 and random.choice([True, False]):
                 midpoint = len(value) // 2
                 if random.choice([True, False]):
-                    # Combine
+                    #Combine
                     value = value[:midpoint] + value[midpoint:]
                 else:
-                    # Split
+                    #Split
                     value = [value[:midpoint], value[midpoint:]]
 
         return value
@@ -85,7 +108,7 @@ def mutate_json(original_json):
         if isinstance(value, (dict, list)):
             return mutate_structure(value)
         elif isinstance(value, str):
-            if value.isdigit():  # Convert string numbers to integers
+            if value.isdigit():  #Convert string numbers to integers
                 return int(value)
             elif value.lower() == 'true':  # Convert 'true' to boolean True
                 return True
