@@ -8,14 +8,21 @@ const betterParse = require('json-parse-even-better-errors');
 const { parse: safeParse } = require('json-parse-safe');
 const stringifySafe = require('json-stringify-safe');
 
-
 const parsers = {
     "JSON.parse": JSON.parse,
     "fast-json-parse": data => fastJsonParse(data).value,
     "JSON5.parse": JSON5.parse,
     "bourne": data => Bourne.parse(data),
     "better-parse": betterParse,
-	"safe-stringify-parse": data => JSON.parse(stringifySafe(data))
+    "safe-stringify-parse": data => JSON.parse(stringifySafe(data)),
+    "flatted-parse": flattedParse,
+    "safe-parse": data => {
+        const result = safeParse(data);
+        if (result.error) {
+            throw new Error(result.error); // This will handle the case where there is an error in parsing
+        }
+        return result.value; // Return the parsed data
+    }
 };
 
 function initializeResultsFile(resultsFile) {
@@ -24,7 +31,6 @@ function initializeResultsFile(resultsFile) {
 }
 
 function logResult(resultsFile, filePath, fileName, parserName, status, errorMessage = "") {
-    // Encapsulate each field in double quotes and escape existing double quotes in the content.
     const row = [`"${filePath}"`, `"${fileName}"`, `"${parserName}"`, `"${status}"`, `"${errorMessage.replace(/"/g, '""')}"`].join(',');
     fs.appendFileSync(resultsFile, row + '\n', 'utf8');
 }
@@ -32,7 +38,12 @@ function logResult(resultsFile, filePath, fileName, parserName, status, errorMes
 function fuzzJsonWithParser(parserName, parserFunc, filePath, resultsFile) {
     try {
         const data = fs.readFileSync(filePath, 'utf8');
-        parserFunc(data);
+        const parsedData = parserFunc(data);
+        // Access the first element or a specific key if the parser returns an object
+        if (typeof parsedData === 'object' && parsedData !== null) {
+            const firstKey = Object.keys(parsedData)[0];
+            const value = parsedData[firstKey]; // Accessing the value of the first key
+        }
         logResult(resultsFile, filePath, path.basename(filePath), parserName, "Success");
     } catch (e) {
         logResult(resultsFile, filePath, path.basename(filePath), parserName, "Error", e.message);

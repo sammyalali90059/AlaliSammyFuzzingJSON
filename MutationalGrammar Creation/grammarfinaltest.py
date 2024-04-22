@@ -56,13 +56,14 @@ def create_random_json(depth=0, MAX_DEPTH=10, CHANCE_TO_NEST=0.8):
 def generate_and_write_json_file(args):
     size, index, current_directory, file_prefix = args
     target_size = size * 1024 * 1024  # Target size in bytes
-    json_string = ""
-    while len(json_string.encode('utf-8')) < target_size:
+    json_array = []
+    while sum(len(json.dumps(item).encode('utf-8')) for item in json_array) < target_size:
         json_obj = create_random_json()
-        json_string += json.dumps(json_obj, indent=2) + "\n"
+        json_array.append(json_obj)
+    final_json_string = json.dumps(json_array, indent=2)
     file_path = os.path.join(current_directory, f"{file_prefix}_{index+1}.json")
     with open(file_path, 'w') as f:
-        f.write(json_string)
+        f.write(final_json_string)
 
 def generate_json_files(num_files, directory, file_sizes, file_prefix="grammar"):
     os.makedirs(directory, exist_ok=True)
@@ -79,6 +80,6 @@ def generate_json_files(num_files, directory, file_sizes, file_prefix="grammar")
 # Main function to start the process
 if __name__ == '__main__':
     output_directory = "C:/Users/Sammy/Documents/Thesis/json_grammars_new_finall"  # Specify your directory here
-    file_sizes = [1,10]  # Target sizes in MB
-    generate_json_files(1600, output_directory, file_sizes)
+    file_sizes = [0.14,1.42,14.28]  # Target sizes in MB. divide by 7
+    generate_json_files(2500, output_directory, file_sizes)
     print(f"JSON grammar files of varying sizes have been generated in {output_directory}.")

@@ -1,22 +1,18 @@
 ﻿using System;
 using System.IO;
 using System.Collections.Generic;
-using System.Text.Json;
-using Newtonsoft.Json;
-using Jil;
-using Utf8Json;
-using RestSharp;
+using System.Diagnostics; // Import for timing
+
 class JsonFuzzer
 {
     static Dictionary<string, Action<string>> parsers = new Dictionary<string, Action<string>>()
     {
-        ["System.Text.Json"] = data => System.Text.Json.JsonSerializer.Deserialize<object>(data),
-        ["Newtonsoft.Json"] = data => Newtonsoft.Json.JsonConvert.DeserializeObject<object>(data),
-        ["Jil"] = data => Jil.JSON.Deserialize<object>(data),
-        ["Utf8Json"] = data => Utf8Json.JsonSerializer.Deserialize<object>(data),
-        ["LitJson"] = data => LitJson.JsonMapper.ToObject(data),
-        ["ServiceStack.Text"] = data => ServiceStack.Text.JsonSerializer.DeserializeFromString<object>(data),
-        ["FastJson"] = data => fastJSON.JSON.ToObject(data)
+        ["System.Text.Json"] = data => DeserializeAndTest(System.Text.Json.JsonSerializer.Deserialize<object>(data)),
+        ["Newtonsoft.Json"] = data => DeserializeAndTest(Newtonsoft.Json.JsonConvert.DeserializeObject<object>(data)),
+        ["Jil"] = data => DeserializeAndTest(Jil.JSON.Deserialize<object>(data)),
+        ["Utf8Json"] = data => DeserializeAndTest(Utf8Json.JsonSerializer.Deserialize<object>(data)),
+        ["ServiceStack.Text"] = data => DeserializeAndTest(ServiceStack.Text.JsonSerializer.DeserializeFromString<object>(data)),
+        ["FastJson"] = data => DeserializeAndTest(fastJSON.JSON.ToObject<object>(data))
     };
 
     static void Main(string[] args)
@@ -29,8 +25,8 @@ class JsonFuzzer
         var directories = new List<string>
         {
             //Path.Combine(baseDirectory, "generated_json_files_advanced"),
+            Path.Combine(baseDirectory, "mutated_json_files"),
             Path.Combine(baseDirectory, "real_json_files")
-            //Path.Combine(baseDirectory, "mutated_json_files")
         };
 
         foreach (var directory in directories)
@@ -43,29 +39,36 @@ class JsonFuzzer
     {
         using (var writer = new StreamWriter(resultsFile, false))
         {
-            writer.WriteLine("File Path,File Name,Parser Name,Status,Error Message");
+            writer.WriteLine("File Path,File Name,Parser Name,Status,Error Message,Duration (ms)");
         }
     }
 
-    static void LogResult(string resultsFile, string filePath, string fileName, string parserName, string status, string errorMessage = "")
+    static void LogResult(string resultsFile, string filePath, string fileName, string parserName, string status, string errorMessage = "", long duration = 0)
     {
+        // Escape quotes by doubling them
+        string sanitizedErrorMessage = errorMessage.Replace("\"", "\"\"");
+
         using (var writer = new StreamWriter(resultsFile, true))
         {
-            writer.WriteLine($"\"{filePath}\",\"{fileName}\",\"{parserName}\",\"{status}\",\"{errorMessage}\"");
+            writer.WriteLine($"\"{filePath}\",\"{fileName}\",\"{parserName}\",\"{status}\",\"{sanitizedErrorMessage}\",\"{duration}\"");
         }
     }
 
     static void FuzzJsonWithParser(string parserName, Action<string> parserFunc, string filePath, string resultsFile)
     {
+        Stopwatch stopwatch = new Stopwatch();
+        stopwatch.Start();
         try
         {
             string data = File.ReadAllText(filePath);
             parserFunc(data);
-            LogResult(resultsFile, filePath, Path.GetFileName(filePath), parserName, "Success");
+            stopwatch.Stop();
+            LogResult(resultsFile, filePath, Path.GetFileName(filePath), parserName, "Success", duration: stopwatch.ElapsedMilliseconds);
         }
         catch (Exception ex)
         {
-            LogResult(resultsFile, filePath, Path.GetFileName(filePath), parserName, "Error", ex.Message);
+            stopwatch.Stop();
+            LogResult(resultsFile, filePath, Path.GetFileName(filePath), parserName, "Error", ex.Message, stopwatch.ElapsedMilliseconds);
         }
     }
 
@@ -79,5 +82,19 @@ class JsonFuzzer
             }
         }
         Console.WriteLine($"Finished processing directory: {directoryPath}");
+    }
+
+    static void DeserializeAndTest(object jsonData)
+    {
+        if (jsonData is IDictionary<string, object> dict && dict.Count > 0)
+        {
+            var firstKey = dict.Keys.GetEnumerator();
+            firstKey.MoveNext();
+            _ = dict[firstKey.Current];
+        }
+        else if (jsonData is List<object> list && list.Count > 0)
+        {
+            _ = list[0];
+        }
     }
 }
