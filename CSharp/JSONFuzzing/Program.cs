@@ -18,21 +18,36 @@ class JsonFuzzer
     static void Main(string[] args)
     {
         string baseDirectory = @"C:\Users\Sammy\Documents\Thesis\AlaliSammyFuzzingJSON\JSONFiles";
-        string resultsDirectory = @"C:\Users\Sammy\Documents\Thesis\AlaliSammyFuzzingJSON\Results";
-        string resultsFile = Path.Combine(resultsDirectory, "fuzzing_results_csharp.csv");
-
-        InitializeResultsFile(resultsFile);
         var directories = new List<string>
         {
-            //Path.Combine(baseDirectory, "generated_json_files_advanced"),
+            Path.Combine(baseDirectory, "real_json_files"),
             Path.Combine(baseDirectory, "mutated_json_files"),
-            Path.Combine(baseDirectory, "real_json_files")
+            Path.Combine(baseDirectory, "1mbgenerated"),
+            Path.Combine(baseDirectory, "10mbgenerated"),
+            Path.Combine(baseDirectory, "100mbgenerated")
         };
 
         foreach (var directory in directories)
         {
-            FuzzDirectory(directory, resultsFile);
+            FuzzDirectory(directory);
         }
+    }
+
+    static void FuzzDirectory(string directoryPath)
+    {
+        string directoryName = Path.GetFileName(directoryPath);
+        string resultsFile = Path.Combine(directoryPath, $"{directoryName}_results.csv");
+
+        InitializeResultsFile(resultsFile);
+
+        foreach (var filePath in Directory.EnumerateFiles(directoryPath, "*.json"))
+        {
+            foreach (var parser in parsers)
+            {
+                FuzzJsonWithParser(parser.Key, parser.Value, filePath, resultsFile);
+            }
+        }
+        Console.WriteLine($"Finished processing directory: {directoryPath}");
     }
 
     static void InitializeResultsFile(string resultsFile)
@@ -70,18 +85,6 @@ class JsonFuzzer
             stopwatch.Stop();
             LogResult(resultsFile, filePath, Path.GetFileName(filePath), parserName, "Error", ex.Message, stopwatch.ElapsedMilliseconds);
         }
-    }
-
-    static void FuzzDirectory(string directoryPath, string resultsFile)
-    {
-        foreach (var filePath in Directory.EnumerateFiles(directoryPath, "*.json"))
-        {
-            foreach (var parser in parsers)
-            {
-                FuzzJsonWithParser(parser.Key, parser.Value, filePath, resultsFile);
-            }
-        }
-        Console.WriteLine($"Finished processing directory: {directoryPath}");
     }
 
     static void DeserializeAndTest(object jsonData)
