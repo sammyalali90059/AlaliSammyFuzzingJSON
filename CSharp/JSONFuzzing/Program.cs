@@ -1,18 +1,19 @@
 ﻿using System;
 using System.IO;
 using System.Collections.Generic;
-using System.Diagnostics; // Import for timing
+using System.Diagnostics;
+using System.Linq;
 
 class JsonFuzzer
 {
-    static Dictionary<string, Action<string>> parsers = new Dictionary<string, Action<string>>()
+    static Dictionary<string, Func<string, object>> parsers = new Dictionary<string, Func<string, object>>()
     {
-        ["System.Text.Json"] = data => DeserializeAndTest(System.Text.Json.JsonSerializer.Deserialize<object>(data)),
-        ["Newtonsoft.Json"] = data => DeserializeAndTest(Newtonsoft.Json.JsonConvert.DeserializeObject<object>(data)),
-        ["Jil"] = data => DeserializeAndTest(Jil.JSON.Deserialize<object>(data)),
-        ["Utf8Json"] = data => DeserializeAndTest(Utf8Json.JsonSerializer.Deserialize<object>(data)),
-        ["ServiceStack.Text"] = data => DeserializeAndTest(ServiceStack.Text.JsonSerializer.DeserializeFromString<object>(data)),
-        ["FastJson"] = data => DeserializeAndTest(fastJSON.JSON.ToObject<object>(data))
+        ["System.Text.Json"] = data => System.Text.Json.JsonSerializer.Deserialize<object>(data),
+        ["Newtonsoft.Json"] = data => Newtonsoft.Json.JsonConvert.DeserializeObject<object>(data),
+        ["Jil"] = data => Jil.JSON.Deserialize<object>(data),
+        ["Utf8Json"] = data => Utf8Json.JsonSerializer.Deserialize<object>(data),
+        ["ServiceStack.Text"] = data => ServiceStack.Text.JsonSerializer.DeserializeFromString<object>(data),
+        ["FastJson"] = data => fastJSON.JSON.ToObject<object>(data)
     };
 
     static void Main(string[] args)
@@ -54,50 +55,55 @@ class JsonFuzzer
     {
         using (var writer = new StreamWriter(resultsFile, false))
         {
-            writer.WriteLine("File Path,File Name,Parser Name,Status,Error Message,Duration (ms)");
+            writer.WriteLine("File Path,File Name,Parser Name,Status,Error Message,Duration (ms),Random Access Result,Memory Usage (MB)");
         }
     }
 
-    static void LogResult(string resultsFile, string filePath, string fileName, string parserName, string status, string errorMessage = "", long duration = 0)
+    static string TestRandomAccess(object jsonData)
+    {
+        // Randomly access elements in the parsed JSON data to simulate usage and verify integrity.
+        if (jsonData is IDictionary<string, object> dict && dict.Count > 0)
+        {
+            var random = new Random();
+            var randomKey = dict.Keys.ElementAt(random.Next(dict.Count));
+            return dict[randomKey] != null ? "Yes" : "N/A";
+        }
+        else if (jsonData is List<object> list && list.Count > 0)
+        {
+            var random = new Random();
+            var randomIndex = random.Next(list.Count);
+            return list[randomIndex] != null ? "Yes" : "N/A";
+        }
+        return "N/A";
+    }
+
+    static void LogResult(string resultsFile, string filePath, string fileName, string parserName, string status, string errorMessage = "", long duration = 0, string randomAccessResult = "N/A")
     {
         // Escape quotes by doubling them
         string sanitizedErrorMessage = errorMessage.Replace("\"", "\"\"");
-
         using (var writer = new StreamWriter(resultsFile, true))
         {
-            writer.WriteLine($"\"{filePath}\",\"{fileName}\",\"{parserName}\",\"{status}\",\"{sanitizedErrorMessage}\",\"{duration}\"");
+            // Log the memory usage of the process after parsing the JSON file.
+            writer.WriteLine($"\"{filePath}\",\"{fileName}\",\"{parserName}\",\"{status}\",\"{sanitizedErrorMessage}\",\"{duration}\",\"{randomAccessResult}\",\"{GC.GetTotalMemory(false) / (1024 * 1024)}\"");
         }
     }
 
-    static void FuzzJsonWithParser(string parserName, Action<string> parserFunc, string filePath, string resultsFile)
+    static void FuzzJsonWithParser(string parserName, Func<string, object> parserFunc, string filePath, string resultsFile)
     {
         Stopwatch stopwatch = new Stopwatch();
         stopwatch.Start();
         try
         {
             string data = File.ReadAllText(filePath);
-            parserFunc(data);
+            object parsedData = parserFunc(data);
+            string randomAccessResult = TestRandomAccess(parsedData);
             stopwatch.Stop();
-            LogResult(resultsFile, filePath, Path.GetFileName(filePath), parserName, "Success", duration: stopwatch.ElapsedMilliseconds);
+            LogResult(resultsFile, filePath, Path.GetFileName(filePath), parserName, "Success", "", stopwatch.ElapsedMilliseconds, randomAccessResult);
         }
         catch (Exception ex)
         {
             stopwatch.Stop();
             LogResult(resultsFile, filePath, Path.GetFileName(filePath), parserName, "Error", ex.Message, stopwatch.ElapsedMilliseconds);
-        }
-    }
-
-    static void DeserializeAndTest(object jsonData)
-    {
-        if (jsonData is IDictionary<string, object> dict && dict.Count > 0)
-        {
-            var firstKey = dict.Keys.GetEnumerator();
-            firstKey.MoveNext();
-            _ = dict[firstKey.Current];
-        }
-        else if (jsonData is List<object> list && list.Count > 0)
-        {
-            _ = list[0];
         }
     }
 }

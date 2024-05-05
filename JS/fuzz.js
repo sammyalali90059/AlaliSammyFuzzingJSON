@@ -1,52 +1,53 @@
 const fs = require('fs');
 const path = require('path');
-const fastJsonParse = require('fast-json-parse');
 const JSON5 = require('json5');
 const Bourne = require('@hapi/bourne');
-const { parse: flattedParse } = require('flatted');
 const betterParse = require('json-parse-even-better-errors');
-const { parse: safeParse } = require('json-parse-safe');
+const safeParse = require('json-parse-safe');
 const stringifySafe = require('json-stringify-safe');
 
+const { performance } = require('perf_hooks');
 const parsers = {
     "JSON.parse": JSON.parse,
-    "fast-json-parse": data => fastJsonParse(data).value,
-    "JSON5.parse": JSON5.parse,
-    "bourne": data => Bourne.parse(data),
-    "better-parse": betterParse,
-    "safe-stringify-parse": data => JSON.parse(stringifySafe(data)),
-    "flatted-parse": flattedParse,
-    "safe-parse": data => {
-        const result = safeParse(data);
-        if (result.error) {
-            throw new Error(result.error); // This will handle the case where there is an error in parsing
-        }
-        return result.value; // Return the parsed data
-    }
+    "fast-json-parse": data => require('fast-json-parse')(data).value,
+    "JSON5.parse": require('json5').parse,
+    "bourne": require('@hapi/bourne').parse,
+    "better-parse": require('json-parse-even-better-errors'),
+    "safe-stringify-parse": data => JSON.parse(require('json-stringify-safe')(data))
 };
 
-function initializeResultsFile(resultsFile) {
-    const headers = ["File Path", "File Name", "Parser Name", "Status", "Error Message"];
-    fs.writeFileSync(resultsFile, headers.join(',') + '\n', 'utf8');
+function testRandomAccess(parsedData) {
+    // Randomly access elements within the parsed JSON data to simulate usage and check the presence of data.
+    if (Array.isArray(parsedData) && parsedData.length > 0) {
+        return parsedData[Math.floor(Math.random() * parsedData.length)] !== undefined ? "Yes" : "N/A";
+    } else if (parsedData !== null && typeof parsedData === 'object' && Object.keys(parsedData).length > 0) {
+        const keys = Object.keys(parsedData);
+        return parsedData[keys[Math.floor(Math.random() * keys.length)]] !== undefined ? "Yes" : "N/A";
+    }
+    return "N/A";
 }
 
-function logResult(resultsFile, filePath, fileName, parserName, status, errorMessage = "") {
-    const row = [`"${filePath}"`, `"${fileName}"`, `"${parserName}"`, `"${status}"`, `"${errorMessage.replace(/"/g, '""')}"`].join(',');
-    fs.appendFileSync(resultsFile, row + '\n', 'utf8');
+function logResult(resultsFile, filePath, fileName, parserName, status, errorMessage = "", duration = 0, randomAccessResult = "N/A", memoryUsage = "N/A") {
+    const row = `"${filePath}","${fileName}","${parserName}","${status}","${errorMessage.replace(/"/g, '""')}","${duration}","${randomAccessResult}","${memoryUsage}"\n`;
+    // Logs results to a file including memory usage which shows how much memory was used after parsing.
+    fs.appendFileSync(resultsFile, row);
 }
 
 function fuzzJsonWithParser(parserName, parserFunc, filePath, resultsFile) {
+    const startTime = performance.now();
     try {
         const data = fs.readFileSync(filePath, 'utf8');
         const parsedData = parserFunc(data);
-        // Access the first element or a specific key if the parser returns an object
-        if (typeof parsedData === 'object' && parsedData !== null) {
-            const firstKey = Object.keys(parsedData)[0];
-            const value = parsedData[firstKey]; // Accessing the value of the first key
-        }
-        logResult(resultsFile, filePath, path.basename(filePath), parserName, "Success");
+        const randomAccessResult = testRandomAccess(parsedData);
+        const duration = performance.now() - startTime;
+        const memoryUsage = process.memoryUsage().heapUsed / 1024 / 1024; // Memory usage in MB
+        // Log the successful parse operation, including duration and memory usage.
+        logResult(resultsFile, filePath, path.basename(filePath), parserName, "Success", "", duration, randomAccessResult, memoryUsage.toFixed(2));
     } catch (e) {
-        logResult(resultsFile, filePath, path.basename(filePath), parserName, "Error", e.message);
+        const duration = performance.now() - startTime;
+        const memoryUsage = process.memoryUsage().heapUsed / 1024 / 1024; // Memory usage in MB
+        // Log any errors encountered during parsing, including error message and memory usage.
+        logResult(resultsFile, filePath, path.basename(filePath), parserName, "Error", e.message, duration, "N/A", memoryUsage.toFixed(2));
     }
 }
 
@@ -56,26 +57,34 @@ function fuzzAllParsers(filePath, resultsFile) {
     });
 }
 
-function fuzzDirectory(directoryPath, resultsFile) {
+function initializeResultsFile(resultsFile) {
+    const headers = "File Path,File Name,Parser Name,Status,Error Message,Duration (ms),Random Access Result,Memory Usage (MB)\n";
+    fs.writeFileSync(resultsFile, headers, 'utf8');
+}
+
+function fuzzDirectory(directoryPath) {
+    const directoryName = path.basename(directoryPath);
+    const resultsFile = path.join(directoryPath, `${directoryName}_results_JS.csv`);
+    initializeResultsFile(resultsFile);
     fs.readdirSync(directoryPath).forEach(file => {
         if (file.endsWith('.json')) {
             const filePath = path.join(directoryPath, file);
             fuzzAllParsers(filePath, resultsFile);
         }
     });
+    console.log(`Finished processing directory: ${directoryPath}`);
 }
 
 function main() {
     const baseDirectory = "C:/Users/Sammy/Documents/Thesis/AlaliSammyFuzzingJSON/JSONFiles";
-    const resultsDirectory = "C:/Users/Sammy/Documents/Thesis/AlaliSammyFuzzingJSON/Results";
-    const resultsFile = path.join(resultsDirectory, "fuzzing_results_js.csv");
-    initializeResultsFile(resultsFile);
     const directories = [
         path.join(baseDirectory, "real_json_files"),
         path.join(baseDirectory, "mutated_json_files"),
-        path.join(baseDirectory, "generated_json_files_advanced")
+        path.join(baseDirectory, "1mbgenerated"),
+        path.join(baseDirectory, "10mbgenerated"),
+        path.join(baseDirectory, "100mbgenerated")
     ];
-    directories.forEach(dir => fuzzDirectory(dir, resultsFile));
+    directories.forEach(dir => fuzzDirectory(dir));
 }
 
 main();
